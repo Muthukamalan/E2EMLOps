@@ -22,6 +22,9 @@ class GradioLambdaFn(Stack):
         # load_dotenv()  # dockerfile exposed to Secret Keys 😨
         # DockerImage.from_build(path= os.getcwd()  ,cache_disabled=True,file='Dockerfile.lambdafn',build_args={'AWS_ACCESS_KEY_ID':"",'AWS_SECRET_x1ACCESS_KEY':'','CDK_DEFAULT_ACCOUNT':'',"CDK_DEFAULT_REGION":''})
 
+
+        # IN CLI,do::  `aws ecr describe-repositories`
+
         # image_name = ""
         # ecr_repository = aws_ecr.Repository.from_repository_attributes(self,
         #         id              = "ECR",
