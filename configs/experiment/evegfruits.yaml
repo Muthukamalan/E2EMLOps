@@ -12,10 +12,13 @@ ckpt_path:  ${paths.root_dir}/checkpoints/ckpts/vegfruits.ckpt
 
 
 data:
-  batch_size: 32
-  num_workers: 10
+  batch_size: 8
+  num_workers: 2
   pin_memory: False
 
+model:
+  patch_size: 8
+  embed_dim: 64
 
 
 tags: 'vegfruits'

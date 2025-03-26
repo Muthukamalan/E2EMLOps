@@ -1,5 +1,21 @@
 _target_: "src.backend.torch_local.models.mvegfruits.LitVegFruitsModel"
 
+# Model parameters
+base_model: convnext_tiny
+num_classes: 63
+pretrained: False
+depths: (1, 1, 2, 1)
+dims: (4, 8, 8, 16)
+patch_size: 8
+
+# Optimizer parameters
+lr: 1e-3
+weight_decay: 1e-5
+
+# Scheduler parameters
+factor: 0.1
+patience: 10
+min_lr: 1e-6
 
 # dims: 
 #   - 3
@@ -15,10 +31,10 @@ _target_: "src.backend.torch_local.models.mvegfruits.LitVegFruitsModel"
 # head_fn: 'default'
 # conv_ratio: 1.
 # in_chans: 3
-num_classes: 63
+
 
 
 # pretrained: false  # always 
 # model_name: 'Mamba'   # stick to mamba based models
-lr: 1e-3
-weight_decay: 1e-5
+# lr: 1e-3
+# weight_decay: 1e-5
