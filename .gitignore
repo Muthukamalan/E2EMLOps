@@ -1,5 +1,10 @@
 # MLProject
 
+# experiment outputs and logs
+/logs
+/outputs
+/multirun
+*/kserve/*
 
 # data folder
 *.zip

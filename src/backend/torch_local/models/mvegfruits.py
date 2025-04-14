@@ -13,6 +13,8 @@ root = rootutils.setup_root(
 
 import lightning as pl
 import timm
+import ast
+import os
 import torch
 from torchmetrics import Accuracy
 
@@ -20,23 +22,26 @@ from torchmetrics import Accuracy
 class LitVegFruitsModel(pl.LightningModule):
     def __init__(
             self,
-            # model_name: str,
+            base_model: str,
             # dims: List,
             # depths: List,
             # head_fn: str,
             # conv_ratio: float,
+            patch_size: int,
+            embed_dim: int,
             num_classes: int,
-            # pretrained: bool,
-            # trainable: bool,
             lr: float,
             weight_decay: float,
+            pretrained=False,
+            # trainable: bool,
             in_chans: int = 3,
+            **kwargs
 
         ):
         super().__init__()
+        self.patch_size = patch_size
+        self.embed_dim = embed_dim
         self.save_hyperparameters()
-        # 🛠️ Let's Think and Waste Time  on Hparams 🛠️
-        # 🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺🦺
 
         # self.model:timm.models.mambaout.MambaOut = timm.models.mambaout.MambaOut(
         #     in_chans=self.hparams.in_chans,
@@ -48,8 +53,8 @@ class LitVegFruitsModel(pl.LightningModule):
         #     act_layer=torch.nn.ReLU,
         # )
 
-        # ⌛ FOr Time Being ⌛
-        self.model = timm.create_model('mambaout_small.in1k',pretrained=True,num_classes=self.hparams.num_classes)
+        self.model = timm.create_model(base_model,pretrained=pretrained,num_classes=self.hparams.num_classes,
+                    dims=ast.literal_eval(kwargs['dims']), depths=ast.literal_eval(kwargs['depths']))
 
         self.train_acc: Accuracy = Accuracy(
             task="multiclass", num_classes=self.hparams.num_classes

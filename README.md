@@ -189,3 +189,30 @@ torch-model-archiver  \
 # github.com/moby/moby/issues/12886#issuecomment-480575928
 export DOCKER_BUILDKIT=1
 ```
+
+# Usage for deployment (currently in local)
+
+Basic train
+
+- `uv run python src/backend/torch_local/train.py experiment=hvegfruits script=true`
+- `uv run python src/backend/torch_local/train.py experiment=hsports script=true`
+
+scripts takes care of creating onnx model in checkpoints folder
+
+Eval
+
+- `uv run python src/backend/torch_local/eval.py experiment=evegfruits`
+- `uv run python src/backend/torch_local/eval.py experiment=esports`
+
+Take the model and host it with fast api
+
+- host one api in 8080 and another api in 9090
+
+- `uv run python src/backend/fastapi_app/fapi_vegfruits.py` 
+- `uv run python src/backend/fastapi_app/fapi_sports.py` 
+
+**Next JS**
+There are two choosing buttons and each one redirects to different end points
+- End points can be changed in `src/frontend/ui/app/predict_app1` and `src/frontend/ui/app/predict_app2`
+
+- npm run dev
