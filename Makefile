@@ -121,11 +121,13 @@ gradio-deploy-locally:  ## deploy gradio on locally
 # 
 #############################################################################################
 tserve-make-mars:  ## make mar files for torchserve
-	torch-model-archiver --model-name msports --serialized-file checkpoints/onnxs/sports.onnx --handler src/backend/torchserve_app/sports_handler.py --export-path checkpoints/model_stores/sports/ -f --version 0.0.1 --extra-files checkpoints/model_stores/sports/index_to_name.json 
-	torch-model-archiver --model-name mvegfruits --serialized-file checkpoints/onnxs/vegfruits.onnx --handler src/backend/torchserve_app/vegfruits_handler.py --export-path checkpoints/model_stores/vegfruits/ -f --version 0.0.1 --extra-files checkpoints/model_stores/vegfruits/index_to_name.json 
-tserve-stop:  ## torchserve stop
+	torch-model-archiver --model-name msports --serialized-file checkpoints/onnxs/sports.onnx --handler src/backend/torchserve_app/sports_handler.py --export-path checkpoints/model_stores/sports/ -f --version 0.0.1 --extra-files checkpoints/model_stores/sports/index_to_name.json -r checkpoints/model_stores/sports/requirements.txt 
+	torch-model-archiver --model-name mvegfruits --serialized-file checkpoints/onnxs/vegfruits.onnx --handler src/backend/torchserve_app/vegfruits_handler.py --export-path checkpoints/model_stores/vegfruits/ -f --version 0.0.1 --extra-files checkpoints/model_stores/vegfruits/index_to_name.json -r checkpoints/model_stores/sports/requirements.txt 
+tserve-stop:       ## torchserve stop
 	torchserve --stop
-
+tserve-docker-build: ## build docker image for torchserve deployment
+	docker build -t dtssports:latest -f Dockerfile.ts.sports .
+	docker build -t dtsvegfruits:latest -f Dockerfile.ts.vegfruits .
 
 
 
@@ -135,6 +137,9 @@ tserve-stop:  ## torchserve stop
 # 
 #############################################################################################
 BUILD_ARGS := $(shell grep -v '^#' .env | xargs -I {} echo --build-arg {})
-lambda-build:
+lambda-docker-build:
+	# makesure you do `docker logout public.ecr.aws`  ## thread, 🧵 https://stackoverflow.com/questions/76975954/docker-pull-from-public-ecr-aws-results-in-403-forbidden-error
+
+	# TO login, `aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${CDK_DEFAULT_ACCOUNT}.dkr.ecr.ap-south-1.amazonaws.com`
 	docker build ${BUILD_ARGS} -t awslambdafn  -f Dockerfile.lambdafn .
 	docker run --rm -it -d -p 8080:8080 --name lambdacontainer awslambdafn

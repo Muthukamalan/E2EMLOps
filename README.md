@@ -82,6 +82,27 @@ data/processed/sports/
     └── wingsuit flying
 -----------------------------------------------------
 data/processed/vegfruits/
+├── test
+│   ├── apple
+│   ├── banana
+│   ├── .
+│   ├── .
+│   ├── turnip
+│   └── watermelon
+├── train
+│   ├── apple
+│   ├── banana
+│   ├── .
+│   ├── .
+│   ├── turnip
+│   └── watermelon
+└── validation
+    ├── apple
+    ├── banana
+    ├── .
+    ├── .
+    ├── turnip
+    └── watermelon
 ```
 
 
@@ -89,10 +110,35 @@ data/processed/vegfruits/
 ```bash
 uv sync --extra cpu   # install torch-cpu version
 uv sync --extra cu124 # install torch-gpu version  cu124
-uv sync --group develop --group visuals --group testing --group prod --extra cpu
+uv sync --group develop --group visuals --group testing --group prod --extra cpu --no-cache
 uv sync --group develop --group visuals --group testing --group prod --extra cu124   # install deps from all
 uv run --env-file .env --extra cpu
 ```
+
+## Installation Time
+```bash
+time uv sync --group develop --group visuals --group testing --group prod --extra cu124 --no-cache
+real 3m4.088s
+user 0m40.967s
+sys  0m30.678s
+```
+
+## DVC Time
+```bash
+# development  # 1.8GB
+dvc init
+dvc add data/processed/sports
+dvc add data/processed/vegfruits
+dvc remote add -d mlops s3://`bucket-name`
+dvc push   
+
+# pull data
+dvc pull
+
+# reproduce
+dvc repro
+```
+
 
 # Model Development Phase:
 ## Hparams Search
@@ -155,8 +201,8 @@ make showoff
 
 ## Gradio Locally
 ```bash
-make gsports
-open http://0.0.0.0:7860/
+make gradio-deploy-locally
+open http://0.0.0.0:8080/
 ```
 
 
@@ -183,9 +229,63 @@ torch-model-archiver  \
 
 
 
+## TorchServe:
+```bash
+torch-model-archiver --model-name msports --serialized-file checkpoints/onnxs/sports.onnx --handler src/backend/torchserve_app/sports_handler.py --export-path checkpoints/model_stores/sports/ -f --version 0.0.1 --extra-files checkpoints/model_stores/sports/index_to_name.json 
+
+torch-model-archiver --model-name mvegfruits --serialized-file checkpoints/onnxs/vegfruits.onnx --handler src/backend/torchserve_app/vegfruits_handler.py --export-path checkpoints/model_stores/vegfruits/ -f --version 0.0.1 --extra-files checkpoints/model_stores/vegfruits/index_to_name.json 
+
+```
+
+```bash
+torchserve --start --model-store checkpoints/model_stores/sports/ --ts-config checkpoints/model_stores/sports/config.properties --enable-model-api --disable-token-auth
+
+torchserve --start --model-store checkpoints/model_stores/vegfruits/ --ts-config checkpoints/model_stores/vegfruits/config.properties --enable-model-api --disable-token-auth
+````
+
+```bash
+curl http://localhost:8080/ping
+
+curl -X OPTIONS http://localhost:8080 -o src/backend/torchserve_app/vegfruits_swagger.json
+curl -X OPTIONS http://localhost:8080 -o src/backend/torchserve_app/sports_swagger.json
+
+
+curl http://localhost:8080/predictions/mvegfruits -F 'data=@data/processed/vegfruits/validation/lettuce/Image_8.jpg'
+curl http://localhost:8080/predictions/msports -F 'data=@data/processed/sports/train/speed skating/001.jpg'
+
+
+# management
+curl http://localhost:8081/models
+
+curl http://localhost:8081/models/mvegfruits
+curl http://localhost:8081/models/msports
+
+
+curl -v -X PUT "http://localhost:8081/models/mvegfruits?min_workers=1&batch_size=10"
+curl -v -X PUT "http://localhost:8081/models/msports?min_workers=1&batch_size=10"
+
+# metrics
+curl http://localhost:8082/metrics
+
+```
+
+
+# Sync to AWS
+
+
+
+
+
 # ON Docker 
 
 ```bash
 # github.com/moby/moby/issues/12886#issuecomment-480575928
 export DOCKER_BUILDKIT=1
+```
+
+# Devcontainer
+```
+image: python:3.12.7-slim-bookworm  #26.91 MB
+build time: 2 Mins  # (GitHub Codespaces)
+size: 3.01GB
 ```
