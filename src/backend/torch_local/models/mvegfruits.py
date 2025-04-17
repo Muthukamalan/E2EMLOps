@@ -2,14 +2,14 @@ import rootutils
 
 # Setup root directory
 root = rootutils.setup_root(
-                    search_from=__file__,
-                    indicator=[".project-root",'.git'],
-                    project_root_env_var=True,             # set the PROJECT_ROOT environment variable to root directory
-                    dotenv=True,                           # load environment variables from .env if exists in root directory
-                    pythonpath=True,                       # add root directory to the PYTHONPATH (helps with imports)
-                    cwd=True                               # change current working directory to the root directory (helps with filepaths)
-        )
-#-----------------------------------------------------------------------------------------------------------------------------------------
+    search_from=__file__,
+    indicator=[".project-root", ".git"],
+    project_root_env_var=True,  # set the PROJECT_ROOT environment variable to root directory
+    dotenv=True,  # load environment variables from .env if exists in root directory
+    pythonpath=True,  # add root directory to the PYTHONPATH (helps with imports)
+    cwd=True,  # change current working directory to the root directory (helps with filepaths)
+)
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 import lightning as pl
 import timm
@@ -19,20 +19,19 @@ from torchmetrics import Accuracy
 
 class LitVegFruitsModel(pl.LightningModule):
     def __init__(
-            self,
-            # model_name: str,
-            # dims: List,
-            # depths: List,
-            # head_fn: str,
-            # conv_ratio: float,
-            num_classes: int,
-            # pretrained: bool,
-            # trainable: bool,
-            lr: float,
-            weight_decay: float,
-            in_chans: int = 3,
-
-        ):
+        self,
+        # model_name: str,
+        # dims: List,
+        # depths: List,
+        # head_fn: str,
+        # conv_ratio: float,
+        num_classes: int,
+        # pretrained: bool,
+        # trainable: bool,
+        lr: float,
+        weight_decay: float,
+        in_chans: int = 3,
+    ):
         super().__init__()
         self.save_hyperparameters()
         # 🛠️ Let's Think and Waste Time  on Hparams 🛠️
@@ -49,7 +48,9 @@ class LitVegFruitsModel(pl.LightningModule):
         # )
 
         # ⌛ FOr Time Being ⌛
-        self.model = timm.create_model('mambaout_small.in1k',pretrained=True,num_classes=self.hparams.num_classes)
+        self.model = timm.create_model(
+            "mambaout_small.in1k", pretrained=True, num_classes=self.hparams.num_classes
+        )
 
         self.train_acc: Accuracy = Accuracy(
             task="multiclass", num_classes=self.hparams.num_classes
@@ -61,7 +62,7 @@ class LitVegFruitsModel(pl.LightningModule):
             task="multiclass", num_classes=self.hparams.num_classes
         )
 
-    def forward(self, x:torch.Tensor)->torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:

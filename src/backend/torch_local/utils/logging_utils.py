@@ -11,14 +11,14 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 # Setup root directory
 root = rootutils.setup_root(
-                    search_from=__file__,
-                    indicator=[".project-root",'.git'],
-                    project_root_env_var=True,             # set the PROJECT_ROOT environment variable to root directory
-                    dotenv=True,                           # load environment variables from .env if exists in root directory
-                    pythonpath=True,                       # add root directory to the PYTHONPATH (helps with imports)
-                    cwd=True                               # change current working directory to the root directory (helps with filepaths)
-        )
-#----------------------------------------------------------------------------------------
+    search_from=__file__,
+    indicator=[".project-root", ".git"],
+    project_root_env_var=True,  # set the PROJECT_ROOT environment variable to root directory
+    dotenv=True,  # load environment variables from .env if exists in root directory
+    pythonpath=True,  # add root directory to the PYTHONPATH (helps with imports)
+    cwd=True,  # change current working directory to the root directory (helps with filepaths)
+)
+# ----------------------------------------------------------------------------------------
 
 
 def setup_logger(log_file):
@@ -55,7 +55,10 @@ def get_rich_progress():
 
 
 def plot_confusion_matrix(
-    model: pl.LightningModule, datamodule: pl.LightningDataModule,classes:list, path: str = "."
+    model: pl.LightningModule,
+    datamodule: pl.LightningDataModule,
+    classes: list,
+    path: str = ".",
 ):
     model.eval()
     os.makedirs(path, exist_ok=True)
@@ -77,19 +80,18 @@ def plot_confusion_matrix(
 
         cm = confusion_matrix(y_true=y_true, y_pred=y_pred)
         print(cm)
-        disp = ConfusionMatrixDisplay(
-            confusion_matrix=cm, display_labels=classes
-        )
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classes)
         disp.plot(xticks_rotation="vertical", colorbar=False).figure_.savefig(
             os.path.join(path, f"{mode}_confusion_matrix.png")
         )  # f'{path}{mode}_confusion_matrix.png')
 
     for mode, loader in zip(
-        ["val","train", "test"],
+        ["val", "train", "test"],
         [
             datamodule.train_dataloader,
             datamodule.test_dataloader,
             datamodule.val_dataloader,
-        ], strict=False,
+        ],
+        strict=False,
     ):
         fn(mode=mode, loader=loader)

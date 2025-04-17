@@ -81,12 +81,8 @@ def test(
 ):
     log.info("Starting testing!")
     if cfg.ckpt_path:
-        log.info(
-            f"Loading best checkpoint: {cfg.ckpt_path}"
-        )
-        test_metrics = trainer.test(
-            model, datamodule, ckpt_path=cfg.ckpt_path
-        )
+        log.info(f"Loading best checkpoint: {cfg.ckpt_path}")
+        test_metrics = trainer.test(model, datamodule, ckpt_path=cfg.ckpt_path)
     else:
         log.warning("No checkpoint found! Using current model weights.")
         test_metrics = trainer.test(model, datamodule=datamodule, verbose=True)
@@ -108,8 +104,8 @@ def main(cfg: DictConfig):
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: pl.LightningDataModule = hydra.utils.instantiate(cfg.data)
     datamodule.prepare_data()
-    datamodule.setup('fit')  # required for confusion matrix
-    datamodule.setup('test')
+    datamodule.setup("fit")  # required for confusion matrix
+    datamodule.setup("test")
 
     # Initialize Model
     log.info(f"Instantiating model <{cfg.model._target_}>")
@@ -126,21 +122,26 @@ def main(cfg: DictConfig):
     # Initialize Trainer
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
     trainer: pl.Trainer = hydra.utils.instantiate(
-        cfg.trainer,
-        logger=loggers,
-        callbacks=callbacks
+        cfg.trainer, logger=loggers, callbacks=callbacks
     )
 
     # # Test the model
     if cfg.get("test"):
         _test_metrics = test(cfg, trainer, model, datamodule)
 
-    distribution_fn(datamodule.train_dataloader(),path=os.path.join(cfg.paths.root_dir,'assets'))
+    distribution_fn(
+        datamodule.train_dataloader(), path=os.path.join(cfg.paths.root_dir, "assets")
+    )
 
-    images, _labels  = next(iter(datamodule.train_dataloader()))
-    show_batch_images(images,path=os.path.join(cfg.paths.root_dir,'assets'))
+    images, _labels = next(iter(datamodule.train_dataloader()))
+    show_batch_images(images, path=os.path.join(cfg.paths.root_dir, "assets"))
 
-    plot_confusion_matrix(model=model,datamodule=datamodule,classes=datamodule.test_ds.classes,path=os.path.join(cfg.paths.root_dir,'assets'))
+    plot_confusion_matrix(
+        model=model,
+        datamodule=datamodule,
+        classes=datamodule.test_ds.classes,
+        path=os.path.join(cfg.paths.root_dir, "assets"),
+    )
 
 
 if __name__ == "__main__":

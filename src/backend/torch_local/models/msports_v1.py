@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from timm.models.layers import DropPath, to_2tuple
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 # RMS Norm
@@ -30,11 +30,15 @@ class LayerScale(nn.Module):
         self.gamma = nn.Parameter(init_values * torch.ones(dim))
         self.force_fp32 = force_fp32
 
-    @torch.amp.autocast(device,enabled=False)
+    @torch.amp.autocast(device, enabled=False)
     def forward(self, x):
         if self.force_fp32:
             output_type = x.dtype
-            out = x.float().mul_(self.gamma.float()) if self.inplace else x.float() * self.gamma.float()
+            out = (
+                x.float().mul_(self.gamma.float())
+                if self.inplace
+                else x.float() * self.gamma.float()
+            )
             return out.to(dtype=output_type)
         else:
             out = x.mul_(self.gamma) if self.inplace else x * self.gamma
@@ -43,11 +47,17 @@ class LayerScale(nn.Module):
 
 # FeedForward Layer
 class Mlp(nn.Module):
-    """ MLP as used in Vision Transformer, MLP-Mixer and related networks
-    """
+    """MLP as used in Vision Transformer, MLP-Mixer and related networks"""
 
-    def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU,
-                 bias=True, drop=0.):
+    def __init__(
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        bias=True,
+        drop=0.0,
+    ):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -71,10 +81,17 @@ class Mlp(nn.Module):
 
 # Image to Patch
 class PatchEmbed(nn.Module):
-    """ 2D Image to Patch Embedding
-    """
+    """2D Image to Patch Embedding"""
 
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768, norm_layer=None, flatten=True):
+    def __init__(
+        self,
+        img_size=224,
+        patch_size=16,
+        in_chans=3,
+        embed_dim=768,
+        norm_layer=None,
+        flatten=True,
+    ):
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
@@ -85,10 +102,12 @@ class PatchEmbed(nn.Module):
         self.num_patches = num_patches
         self.flatten = flatten
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv2d(
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size
+        )
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
-    def forward(self, x:torch.Tensor, **kwargs):
+    def forward(self, x: torch.Tensor, **kwargs):
         x = self.proj(x)
         _, _, H, W = x.shape
         if self.flatten:
@@ -100,8 +119,16 @@ class PatchEmbed(nn.Module):
 # Cross Attention Block
 class CrossAttention(nn.Module):
     def __init__(
-            self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.,
-            proj_drop=0., attn_head_dim=None, out_dim=None):
+        self,
+        dim,
+        num_heads=8,
+        qkv_bias=False,
+        qk_scale=None,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        attn_head_dim=None,
+        out_dim=None,
+    ):
         super().__init__()
         if out_dim is None:
             out_dim = dim
@@ -110,7 +137,7 @@ class CrossAttention(nn.Module):
         if attn_head_dim is not None:
             head_dim = attn_head_dim
         all_head_dim = head_dim * self.num_heads
-        self.scale = qk_scale or head_dim ** -0.5
+        self.scale = qk_scale or head_dim**-0.5
         assert all_head_dim == dim
 
         self.q = nn.Linear(dim, all_head_dim, bias=False)
@@ -131,7 +158,7 @@ class CrossAttention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x, k=None, v=None):
-        B, N, _ = x.shape   # B,N,C
+        B, N, _ = x.shape  # B,N,C
         N_k = k.shape[1]
         N_v = v.shape[1]
 
@@ -142,7 +169,9 @@ class CrossAttention(nn.Module):
             v_bias = self.v_bias
 
         q = torch.nn.functional.linear(input=x, weight=self.q.weight, bias=q_bias)
-        q = q.reshape(B, N, 1, self.num_heads, -1).permute(2, 0, 3, 1, 4).squeeze(0)  # (B, N_head, N_q, dim)
+        q = (
+            q.reshape(B, N, 1, self.num_heads, -1).permute(2, 0, 3, 1, 4).squeeze(0)
+        )  # (B, N_head, N_q, dim)
 
         k = torch.nn.functional.linear(input=k, weight=self.k.weight, bias=k_bias)
         k = k.reshape(B, N_k, 1, self.num_heads, -1).permute(2, 0, 3, 1, 4).squeeze(0)
@@ -151,7 +180,7 @@ class CrossAttention(nn.Module):
         v = v.reshape(B, N_v, 1, self.num_heads, -1).permute(2, 0, 3, 1, 4).squeeze(0)
 
         q = q * self.scale
-        attn = (q @ k.transpose(-2, -1))  # (B, N_head, N_q, N_k)
+        attn = q @ k.transpose(-2, -1)  # (B, N_head, N_q, N_k)
 
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
@@ -166,20 +195,20 @@ class CrossAttention(nn.Module):
 # Attention Block
 class Attention(nn.Module):
     def __init__(
-            self,
-            dim,
-            num_heads=8,
-            qkv_bias=False,
-            attn_drop=0.,
-            proj_drop=0.,
-            norm_layer=nn.LayerNorm,
-            qk_normalization=False
+        self,
+        dim,
+        num_heads=8,
+        qkv_bias=False,
+        attn_drop=0.0,
+        proj_drop=0.0,
+        norm_layer=nn.LayerNorm,
+        qk_normalization=False,
     ):
         super().__init__()
-        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
+        assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = head_dim ** -0.5
+        self.scale = head_dim**-0.5
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
@@ -190,17 +219,29 @@ class Attention(nn.Module):
         self.q_norm = norm_layer(dim) if qk_normalization else nn.Identity()
         self.k_norm = norm_layer(dim) if qk_normalization else nn.Identity()
 
-    def _naive_attn(self, x:torch.Tensor):
+    def _naive_attn(self, x: torch.Tensor):
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, C // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
+        )
         q, k, v = qkv.unbind(0)  # make torchscript happy (cannot use tensor as tuple)
 
         if self.qk_normalization:
             B_, H_, N_, D_ = q.shape
-            q = self.q_norm(q.transpose(1, 2).flatten(-2, -1)).view(B_, N_, H_, D_).transpose(1, 2)
-            k = self.k_norm(k.transpose(1, 2).flatten(-2, -1)).view(B_, N_, H_, D_).transpose(1, 2)
+            q = (
+                self.q_norm(q.transpose(1, 2).flatten(-2, -1))
+                .view(B_, N_, H_, D_)
+                .transpose(1, 2)
+            )
+            k = (
+                self.k_norm(k.transpose(1, 2).flatten(-2, -1))
+                .view(B_, N_, H_, D_)
+                .transpose(1, 2)
+            )
 
-        attn = ((q * self.scale) @ k.transpose(-2, -1))
+        attn = (q * self.scale) @ k.transpose(-2, -1)
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
@@ -217,39 +258,56 @@ class Attention(nn.Module):
 # Single Transformer Block
 class Block(nn.Module):
     def __init__(
-            self,
-            dim,
-            num_heads,
-            mlp_ratio=4.,
-            qkv_bias=False,
-            drop=0.,
-            attn_drop=0.,
-            init_values=None,
-            drop_path=0.,
-            act_layer=nn.GELU,
-            norm_layer=nn.LayerNorm,
-            qk_normalization=False,
-            layerscale_force_fp32=False
+        self,
+        dim,
+        num_heads,
+        mlp_ratio=4.0,
+        qkv_bias=False,
+        drop=0.0,
+        attn_drop=0.0,
+        init_values=None,
+        drop_path=0.0,
+        act_layer=nn.GELU,
+        norm_layer=nn.LayerNorm,
+        qk_normalization=False,
+        layerscale_force_fp32=False,
     ):
         super().__init__()
 
         self.norm1 = norm_layer(dim)
-        self.attn = Attention(dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop,
-                             norm_layer=norm_layer,
-                              qk_normalization=qk_normalization)
-        self.ls1 = LayerScale(dim, init_values=init_values,
-                              force_fp32=layerscale_force_fp32) if init_values else nn.Identity()
+        self.attn = Attention(
+            dim,
+            num_heads=num_heads,
+            qkv_bias=qkv_bias,
+            attn_drop=attn_drop,
+            proj_drop=drop,
+            norm_layer=norm_layer,
+            qk_normalization=qk_normalization,
+        )
+        self.ls1 = (
+            LayerScale(dim, init_values=init_values, force_fp32=layerscale_force_fp32)
+            if init_values
+            else nn.Identity()
+        )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
-        self.ls2 = LayerScale(dim, init_values=init_values,
-                              force_fp32=layerscale_force_fp32) if init_values else nn.Identity()
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.mlp = Mlp(
+            in_features=dim,
+            hidden_features=mlp_hidden_dim,
+            act_layer=act_layer,
+            drop=drop,
+        )
+        self.ls2 = (
+            LayerScale(dim, init_values=init_values, force_fp32=layerscale_force_fp32)
+            if init_values
+            else nn.Identity()
+        )
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def forward(self, x:torch.Tensor):
+    def forward(self, x: torch.Tensor):
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
@@ -257,17 +315,17 @@ class Block(nn.Module):
 
 class AttentiveBlock(nn.Module):
     def __init__(
-            self,
-            dim,
-            num_heads,
-            qkv_bias=False,
-            qk_scale=None,
-            drop=0.,
-            attn_drop=0.,
-            drop_path=0.,
-            norm_layer=nn.LayerNorm,
-            attn_head_dim=None,
-            out_dim=None
+        self,
+        dim,
+        num_heads,
+        qkv_bias=False,
+        qk_scale=None,
+        drop=0.0,
+        attn_drop=0.0,
+        drop_path=0.0,
+        norm_layer=nn.LayerNorm,
+        attn_head_dim=None,
+        out_dim=None,
     ):
         super().__init__()
 
@@ -275,10 +333,17 @@ class AttentiveBlock(nn.Module):
         self.norm1_k = norm_layer(dim)
         self.norm1_v = norm_layer(dim)
         self.cross_attn = CrossAttention(
-            dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop,
-            proj_drop=drop, attn_head_dim=attn_head_dim, out_dim=out_dim)
+            dim,
+            num_heads=num_heads,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            attn_drop=attn_drop,
+            proj_drop=drop,
+            attn_head_dim=attn_head_dim,
+            out_dim=out_dim,
+        )
 
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x_q, x_kv, pos_q, pos_k, bool_masked_pos, rel_pos_bias=None):
         x_q = self.norm1_q(x_q + pos_q)
@@ -292,31 +357,36 @@ class AttentionPoolingBlock(AttentiveBlock):
     def forward(self, x):
         x_q = x.mean(1, keepdim=True)
         x_kv, pos_q, pos_k = x, 0, 0
-        x = super().forward(x_q, x_kv, pos_q, pos_k, bool_masked_pos=None, rel_pos_bias=None)
+        x = super().forward(
+            x_q, x_kv, pos_q, pos_k, bool_masked_pos=None, rel_pos_bias=None
+        )
         x = x.squeeze(1)
         return x
 
 
 class InternViT(nn.Module):
     def __init__(
-                self,
-                in_chans=3,
-                patch_size=14,
-                img_size=224,
-                qkv_bias=False,                # True
-                drop_path_rate=0.0,
-                embed_dim=32,
-                num_heads=16,
-                mlp_ratio=4,
-                init_values=0.1,
-                qk_normalization=True,
-                depth=2,
-                layerscale_force_fp32=False,
-                cls_target='cls_patch_concat',  # attention_pooling
-                num_classes=10,
-                norm_type='rms'):
+        self,
+        in_chans=3,
+        patch_size=14,
+        img_size=224,
+        qkv_bias=False,  # True
+        drop_path_rate=0.0,
+        embed_dim=32,
+        num_heads=16,
+        mlp_ratio=4,
+        init_values=0.1,
+        qk_normalization=True,
+        depth=2,
+        layerscale_force_fp32=False,
+        cls_target="cls_patch_concat",  # attention_pooling
+        num_classes=10,
+        norm_type="rms",
+    ):
         super().__init__()
-        self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
+        self.num_features = self.embed_dim = (
+            embed_dim  # num_features for consistency with other models
+        )
 
         self.drop_path_rate = drop_path_rate
         self.img_size = img_size
@@ -324,9 +394,9 @@ class InternViT(nn.Module):
         self.cls_target = cls_target
         self.depth = depth
 
-        if norm_type == 'rms':
+        if norm_type == "rms":
             norm_layer_for_blocks = partial(RMSNorm, eps=1e-6)
-        elif norm_type == 'ln':
+        elif norm_type == "ln":
             norm_layer_for_blocks = partial(nn.LayerNorm, eps=1e-6)
         else:
             raise NotImplementedError
@@ -341,25 +411,48 @@ class InternViT(nn.Module):
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
 
-        self.blocks = nn.ModuleList([
-            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=qkv_bias,
-                  norm_layer=norm_layer_for_blocks,
-                  drop_path=dpr[i], init_values=init_values, attn_drop=0.,
-                  qk_normalization=qk_normalization,
-                  layerscale_force_fp32=layerscale_force_fp32)
-            for i in range(depth)])
+        self.blocks = nn.ModuleList(
+            [
+                Block(
+                    embed_dim,
+                    num_heads,
+                    mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    norm_layer=norm_layer_for_blocks,
+                    drop_path=dpr[i],
+                    init_values=init_values,
+                    attn_drop=0.0,
+                    qk_normalization=qk_normalization,
+                    layerscale_force_fp32=layerscale_force_fp32,
+                )
+                for i in range(depth)
+            ]
+        )
 
-        if cls_target == 'cls_patch_concat':
-            #TODO: changes from original paper:: from nn.SyncBatchNorm to nn.LayerNorm
+        if cls_target == "cls_patch_concat":
+            # TODO: changes from original paper:: from nn.SyncBatchNorm to nn.LayerNorm
             self.norm = nn.LayerNorm(embed_dim * 2, eps=1e-6)
-            self.head = nn.Linear(embed_dim * 2, num_classes) if num_classes > 0 else nn.Identity()
-        elif cls_target == 'attention_pooling':
+            self.head = (
+                nn.Linear(embed_dim * 2, num_classes)
+                if num_classes > 0
+                else nn.Identity()
+            )
+        elif cls_target == "attention_pooling":
             self.attn_pooling = AttentionPoolingBlock(
-                dim=embed_dim, num_heads=num_heads, qkv_bias=True, qk_scale=None,
-                drop=0., attn_drop=0.0, norm_layer=partial(nn.LayerNorm, eps=1e-5), out_dim=embed_dim)
-            #TODO: changes from original paper:: from nn.SyncBatchNorm to nn.LayerNorm
+                dim=embed_dim,
+                num_heads=num_heads,
+                qkv_bias=True,
+                qk_scale=None,
+                drop=0.0,
+                attn_drop=0.0,
+                norm_layer=partial(nn.LayerNorm, eps=1e-5),
+                out_dim=embed_dim,
+            )
+            # TODO: changes from original paper:: from nn.SyncBatchNorm to nn.LayerNorm
             self.norm = nn.LayerNorm(embed_dim, eps=1e-6)
-            self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+            self.head = (
+                nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+            )
 
         else:
             raise NotImplementedError
@@ -385,9 +478,9 @@ class InternViT(nn.Module):
 
     def forward(self, x):
         x = self.forward_features(x)
-        if self.cls_target == 'cls_patch_concat':
+        if self.cls_target == "cls_patch_concat":
             x = torch.cat((x[:, 0, :], x[:, 1:, :].mean(dim=1)), dim=-1)
-        elif self.cls_target == 'attention_pooling':
+        elif self.cls_target == "attention_pooling":
             x = self.attn_pooling(x)
         else:
             raise NotImplementedError

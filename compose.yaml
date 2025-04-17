@@ -1,0 +1,54 @@
+services:
+  tssports:
+    # image: dtssports:latest
+    pull_policy: never
+    container_name: csports
+    build:
+      context: .
+      dockerfile: Dockerfile.ts.sports
+    environment:
+      - ENABLE_TORCH_PROFILER=true
+    ports:
+      - 8080:8080
+      - 8081:8081
+      - 8082:8082
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    
+  tsvegfruits:
+    # image: dtsvegfruits:latest
+    pull_policy: never
+    container_name: cvegfruits
+    build:
+      context: .
+      dockerfile: Dockerfile.ts.vegfruits
+    environment:
+      - ENABLE_TORCH_PROFILER=true
+    ports:
+      - 7070:8080
+      - 7071:8081
+      - 7072:8082
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+
+# curl localhost:8080/ping
+# curl localhost:7070/ping
+# curl localhost:8081/models
+# curl localhost:7071/models
+# curl http://localhost:8081/models/msports
+# curl http://localhost:7071/models/mvegfruits
+# curl http://localhost:8080/predictions/msports -F 'data=@data/processed/sports/train/speed skating/001.jpg'
+# curl http://localhost:7070/predictions/mvegfruits -F 'data=@data/processed/vegfruits/validation/lettuce/Image_8.jpg''
+# curl http://localhost:8082/metrics
+# curl http://localhost:7072/metrics

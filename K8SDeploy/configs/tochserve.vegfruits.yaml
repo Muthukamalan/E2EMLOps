@@ -1,0 +1,87 @@
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name:  vegfruits-deployment
+    labels:
+        app: vegfruits
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: vegfruits
+    template:
+        metadata:
+            labels:
+                app: vegfruits
+        spec:
+            containers:
+                - name: vegfruits
+                  image: dtsvegfruits:latest
+                  imagePullPolicy: Never
+                  ports:
+                  - containerPort: 8080
+                  - containerPort: 8081
+                  - containerPort: 8082
+---
+# Service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+    name: vegfruits-service
+spec:
+    selector:
+        app: vegfruits
+    ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      name: port-8080
+    - protocol: TCP
+      port: 81
+      targetPort: 8081
+      name: port-8081
+    - protocol: TCP
+      port: 82
+      targetPort: 8082
+      name: port-8082
+    type: LoadBalancer
+
+---
+
+# INGRESS
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vegfruits-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: vegfruits.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vegfruits-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vegfruits-service
+                port:
+                  number: 81
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vegfruits-service
+                port:
+                  number: 82

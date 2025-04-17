@@ -2,14 +2,14 @@ import rootutils
 
 # Setup root directory
 root = rootutils.setup_root(
-                    search_from=__file__,
-                    indicator=[".project-root",'.git'],
-                    project_root_env_var=True,             # set the PROJECT_ROOT environment variable to root directory
-                    dotenv=True,                           # load environment variables from .env if exists in root directory
-                    pythonpath=True,                       # add root directory to the PYTHONPATH (helps with imports)
-                    cwd=True                               # change current working directory to the root directory (helps with filepaths)
-        )
-#-----------------------------------------------------------------------------------------------------------------------------------------
+    search_from=__file__,
+    indicator=[".project-root", ".git"],
+    project_root_env_var=True,  # set the PROJECT_ROOT environment variable to root directory
+    dotenv=True,  # load environment variables from .env if exists in root directory
+    pythonpath=True,  # add root directory to the PYTHONPATH (helps with imports)
+    cwd=True,  # change current working directory to the root directory (helps with filepaths)
+)
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 
 import lightning as pl
@@ -20,31 +20,30 @@ from torchmetrics import Accuracy
 
 class LitSportModel(pl.LightningModule):
     def __init__(
-                self,
-                in_chans:int,
-                num_classes:int,
-                global_pool,    # 'avg',  # 'fast' , 'max' , catavgmax
-                depths,         # =(1, 1, 3, 1),
-                dims,           # =(24, 48, 22, 168),
-                heads,          # =(2, 2, 2, 2),
-                global_block_counts, # =(0, 1, 1, 1),
-                kernel_sizes,   # =(1, 3, 5, 7),
-                d2_scales,      # =(2, 2, 3, 4),
-                use_pos_emb,    # =(False, True, False, False),
-                ls_init_value=1e-6,
-                head_init_scale=1.,
-                expand_ratio=4,
-                downsample_block=False,     # true
-                conv_bias=True,             # false
-                stem_type='patch',          # overlap
-                head_norm_first=False,
-                act_layer=torch.nn.GELU,
-                drop_path_rate=0.,
-                drop_rate=0.,
-                lr = 1e-3,
-                weight_decay= 1e-5
-
-        ):
+        self,
+        in_chans: int,
+        num_classes: int,
+        global_pool,  # 'avg',  # 'fast' , 'max' , catavgmax
+        depths,  # =(1, 1, 3, 1),
+        dims,  # =(24, 48, 22, 168),
+        heads,  # =(2, 2, 2, 2),
+        global_block_counts,  # =(0, 1, 1, 1),
+        kernel_sizes,  # =(1, 3, 5, 7),
+        d2_scales,  # =(2, 2, 3, 4),
+        use_pos_emb,  # =(False, True, False, False),
+        ls_init_value=1e-6,
+        head_init_scale=1.0,
+        expand_ratio=4,
+        downsample_block=False,  # true
+        conv_bias=True,  # false
+        stem_type="patch",  # overlap
+        head_norm_first=False,
+        act_layer=torch.nn.GELU,
+        drop_path_rate=0.0,
+        drop_rate=0.0,
+        lr=1e-3,
+        weight_decay=1e-5,
+    ):
         super().__init__()
         print(self.hparams)
         self.save_hyperparameters()
@@ -76,7 +75,11 @@ class LitSportModel(pl.LightningModule):
         # )
 
         # ⌛ FOr Time Being ⌛
-        self.model = timm.create_model('edgenext_xx_small.in1k',pretrained=True,num_classes=self.hparams.num_classes)
+        self.model = timm.create_model(
+            "edgenext_xx_small.in1k",
+            pretrained=True,
+            num_classes=self.hparams.num_classes,
+        )
 
         self.train_acc: Accuracy = Accuracy(
             task="multiclass", num_classes=self.hparams.num_classes
@@ -88,7 +91,7 @@ class LitSportModel(pl.LightningModule):
             task="multiclass", num_classes=self.hparams.num_classes
         )
 
-    def forward(self, x:torch.Tensor)->torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:

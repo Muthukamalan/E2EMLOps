@@ -1,4 +1,3 @@
-
 import hydra
 import rootutils
 from lightning import Callback
@@ -7,14 +6,14 @@ from omegaconf import DictConfig
 
 # Setup root directory
 root = rootutils.setup_root(
-                    search_from=__file__,
-                    indicator=[".project-root",'.git'],
-                    project_root_env_var=True,             # set the PROJECT_ROOT environment variable to root directory
-                    dotenv=True,                           # load environment variables from .env if exists in root directory
-                    pythonpath=True,                       # add root directory to the PYTHONPATH (helps with imports)
-                    cwd=True                               # change current working directory to the root directory (helps with filepaths)
-        )
-#----------------------------------------------------------------------------------------
+    search_from=__file__,
+    indicator=[".project-root", ".git"],
+    project_root_env_var=True,  # set the PROJECT_ROOT environment variable to root directory
+    dotenv=True,  # load environment variables from .env if exists in root directory
+    pythonpath=True,  # add root directory to the PYTHONPATH (helps with imports)
+    cwd=True,  # change current working directory to the root directory (helps with filepaths)
+)
+# ----------------------------------------------------------------------------------------
 
 
 from src.backend.torch_local.utils.pyloggers import RankedLogger

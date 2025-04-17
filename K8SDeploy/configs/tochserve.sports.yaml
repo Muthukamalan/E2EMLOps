@@ -1,0 +1,88 @@
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name:  sports-deployment
+    labels:
+        app: sports
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: sports
+    template:
+        metadata:
+            labels:
+                app: sports
+        spec:
+            containers:
+                - name: sports
+                  image: dtssports:latest
+                  imagePullPolicy: Never
+                  ports:
+                  - containerPort: 8080
+                  - containerPort: 8081
+                  - containerPort: 8082
+---
+# Service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+    name: sports-service
+spec:
+    selector:
+        app: sports
+    ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      name: port-8080
+    - protocol: TCP
+      port: 81
+      targetPort: 8081
+      name: port-8081
+    - protocol: TCP
+      port: 82
+      targetPort: 8082
+      name: port-8082
+    type: LoadBalancer
+
+---
+
+# INGRESS
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sports-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sports.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sports-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sports-service
+                port:
+                  number: 81
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sports-service
+                port:
+                  number: 82
+

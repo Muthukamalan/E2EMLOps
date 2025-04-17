@@ -34,11 +34,13 @@ class SportsHandler(BaseHandler):
         model_file = "sports.onnx"
         model_path = os.path.join(model_dir, model_file)
 
-        self.transform = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(self.input_size),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(mean=self.mean,std=self.std)
-        ])
+        self.transform = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.Resize(self.input_size),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize(mean=self.mean, std=self.std),
+            ]
+        )
 
         # Load the ONNX model
         self.model = onnxruntime.InferenceSession(model_path)
@@ -51,44 +53,48 @@ class SportsHandler(BaseHandler):
             self.mapping = list(json.load(mapping_file).values())
         # by default it'll look for `index_to_name.json`
 
-    def preprocess_one_image(self,req) -> np.ndarray:
+    def preprocess_one_image(self, req) -> np.ndarray:
         # get image from the request
         image = req.get("data")
         if image is None:
             image = req.get("body")
         # create a stream from the encoded image
 
-        image = Image.open(io.BytesIO(image)).convert('RGB').resize(self.input_size) # isinstance(image, (bytes, bytearray))
+        image = (
+            Image.open(io.BytesIO(image)).convert("RGB").resize(self.input_size)
+        )  # isinstance(image, (bytes, bytearray))
 
         # preprocess
         image_array = np.array(image).astype(np.float32) / 255.0
 
-        image_array = (image_array-self.mean) / self.std
-        image_array = image_array.transpose(2,0,1)           # Transpose to channel-first format (NCHW)
-        image_array = np.expand_dims(image_array,0 )         # Add batch dimension
+        image_array = (image_array - self.mean) / self.std
+        image_array = image_array.transpose(
+            2, 0, 1
+        )  # Transpose to channel-first format (NCHW)
+        image_array = np.expand_dims(image_array, 0)  # Add batch dimension
         return image_array
 
-    def preprocess(self, requests)->np.ndarray:
+    def preprocess(self, requests) -> np.ndarray:
         """
-            Basic text preprocessing, of the user's prompt.
-            Args:
-                requests (str): The Input data in the form of Bytes for an IMAGE
-            Returns:
-                list : The preprocess function returns a list of prompts.
+        Basic text preprocessing, of the user's prompt.
+        Args:
+            requests (str): The Input data in the form of Bytes for an IMAGE
+        Returns:
+            list : The preprocess function returns a list of prompts.
         """
-        images  = [ self.preprocess_one_image(req) for req in requests ]
-        images  = np.concat(images,axis=0)
+        images = [self.preprocess_one_image(req) for req in requests]
+        images = np.concat(images, axis=0)
         return images
 
     def inference(self, data):
-        '''
-            # argmax(softmax(model(x)))
-            Given the data from .preprocess, perform inference using the model.
-            args:
-                np.ndarray
-            return:
-                position of maximum probs as per image
-        '''
+        """
+        # argmax(softmax(model(x)))
+        Given the data from .preprocess, perform inference using the model.
+        args:
+            np.ndarray
+        return:
+            position of maximum probs as per image
+        """
         if self.model is None:
             raise RuntimeError("model not init!1")
         # Run inference using the ONNX model
@@ -97,15 +103,16 @@ class SportsHandler(BaseHandler):
         return outputs[0]
 
     def postprocess(self, inference_outputs):
-        '''
-            Implement your postprocessing logic here and Convert model output to the desired format
-        '''
-        probabilities = softmax(inference_outputs,axis=1)
+        """
+        Implement your postprocessing logic here and Convert model output to the desired format
+        """
+        probabilities = softmax(inference_outputs, axis=1)
 
-        response:list = []
-        for cls0,prob in zip(
-                                np.argmax(probabilities,axis=1),
-                                np.max(probabilities,axis=1), strict=False
-                        ):
-            response.append({self.mapping[cls0]:float(prob)} )
+        response: list = []
+        for cls0, prob in zip(
+            np.argmax(probabilities, axis=1),
+            np.max(probabilities, axis=1),
+            strict=False,
+        ):
+            response.append({self.mapping[cls0]: float(prob)})
         return response

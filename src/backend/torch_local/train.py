@@ -17,14 +17,14 @@ import rootutils
 
 # Setup root directory
 root = rootutils.setup_root(
-                    search_from=__file__,
-                    indicator=[".project-root",'.git'],
-                    project_root_env_var=True,             # set the PROJECT_ROOT environment variable to root directory
-                    dotenv=True,                           # load environment variables from .env if exists in root directory
-                    pythonpath=True,                       # add root directory to the PYTHONPATH (helps with imports)
-                    cwd=True                               # change current working directory to the root directory (helps with filepaths)
-        )
-#----------------------------------------------------------------------------------------
+    search_from=__file__,
+    indicator=[".project-root", ".git"],
+    project_root_env_var=True,  # set the PROJECT_ROOT environment variable to root directory
+    dotenv=True,  # load environment variables from .env if exists in root directory
+    pythonpath=True,  # add root directory to the PYTHONPATH (helps with imports)
+    cwd=True,  # change current working directory to the root directory (helps with filepaths)
+)
+# ----------------------------------------------------------------------------------------
 
 
 from src.backend.torch_local.utils.instantiators import (
@@ -75,7 +75,7 @@ def test(
 def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg=cfg))
 
-    pl.seed_everything(seed=3,workers=True,verbose=True)
+    pl.seed_everything(seed=3, workers=True, verbose=True)
 
     # Set up paths
     log_dir = Path(cfg.paths.log_dir)
@@ -87,10 +87,10 @@ def main(cfg: DictConfig):
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: pl.LightningDataModule = hydra.utils.instantiate(cfg.data)
     datamodule.prepare_data()
-    datamodule.setup('fit')
-    datamodule.setup('test')
+    datamodule.setup("fit")
+    datamodule.setup("test")
 
-    imgs,_labels = next(iter(datamodule.train_dataloader()))
+    imgs, _labels = next(iter(datamodule.train_dataloader()))
 
     # print(type(tuple(cfg.model.depths)))
     # Initialize Model
@@ -118,41 +118,53 @@ def main(cfg: DictConfig):
     if cfg.get("test"):
         test_metrics = test(cfg, trainer, model, datamodule)
 
-    if cfg.get('script',False):
+    if cfg.get("script", False):
 
-        classname_file =  os.path.join(f"{cfg.paths.root_dir}","checkpoints",'classnames',f"{cfg.name}.json")
+        classname_file = os.path.join(
+            f"{cfg.paths.root_dir}", "checkpoints", "classnames", f"{cfg.name}.json"
+        )
         if not os.path.isfile(classname_file):
-            with open(classname_file,'w') as f:
-                json.dump(datamodule.train_ds.class_to_idx,f)
+            with open(classname_file, "w") as f:
+                json.dump(datamodule.train_ds.class_to_idx, f)
 
+        ptfiles = glob(
+            os.path.join(
+                f"{cfg.paths.root_dir}", "checkpoints", "pths", f"{cfg.name}*.pt"
+            )
+        )
+        for ptfile in ptfiles:
+            os.remove(ptfile)
 
-        ptfiles = glob( os.path.join( f"{cfg.paths.root_dir}","checkpoints","pths" ,f"{cfg.name}*.pt" ))
-        for ptfile in ptfiles: os.remove(ptfile)
-
-        model_file_path:str = os.path.join( f"{cfg.paths.root_dir}","checkpoints","pths" ,f"{cfg.name}.pt" )
+        model_file_path: str = os.path.join(
+            f"{cfg.paths.root_dir}", "checkpoints", "pths", f"{cfg.name}.pt"
+        )
         print(model_file_path)
 
-        imgs,_lbls = next(iter(datamodule.train_dataloader()) )
+        imgs, _lbls = next(iter(datamodule.train_dataloader()))
 
         # cuda not available: cpu.pt files
         if not torch.cuda.is_available():
             model = model.cpu()
-            imgs  = imgs.cpu()
-            cpu_model_file_path:str = os.path.join( f"{cfg.paths.root_dir}","checkpoints","pths" ,f"{cfg.name}_cpu.pt" )
-            cpu_scripted_model = model.cpu().to_torchscript(method='trace',example_inputs=imgs)
-            if os.path.isfile( cpu_model_file_path ):
+            imgs = imgs.cpu()
+            cpu_model_file_path: str = os.path.join(
+                f"{cfg.paths.root_dir}", "checkpoints", "pths", f"{cfg.name}_cpu.pt"
+            )
+            cpu_scripted_model = model.cpu().to_torchscript(
+                method="trace", example_inputs=imgs
+            )
+            if os.path.isfile(cpu_model_file_path):
                 os.remove(cpu_model_file_path)
             torch.jit.save(cpu_scripted_model, cpu_model_file_path)
             print(f"torch script model saved: {cpu_model_file_path=}")
 
-        # cuda available: 
+        # cuda available:
         if torch.cuda.is_available():
             # convert model and image into cuda()
             model = model.cuda()
-            imgs  = imgs.cuda()
+            imgs = imgs.cuda()
 
-            scripted_model = model.to_torchscript(method='trace',example_inputs=imgs)
-            if os.path.isfile( model_file_path ):
+            scripted_model = model.to_torchscript(method="trace", example_inputs=imgs)
+            if os.path.isfile(model_file_path):
                 os.remove(model_file_path)
 
             torch.jit.save(scripted_model, model_file_path)
@@ -160,28 +172,40 @@ def main(cfg: DictConfig):
 
             # save file in cpu format also
             model = model.cpu()
-            imgs  = imgs.cpu()
-            cpu_model_file_path:str = os.path.join( f"{cfg.paths.root_dir}","checkpoints","pths" ,f"{cfg.name}_cpu.pt" )
-            cpu_scripted_model = model.cpu().to_torchscript(method='trace',example_inputs=imgs)
-            if os.path.isfile( cpu_model_file_path ):
+            imgs = imgs.cpu()
+            cpu_model_file_path: str = os.path.join(
+                f"{cfg.paths.root_dir}", "checkpoints", "pths", f"{cfg.name}_cpu.pt"
+            )
+            cpu_scripted_model = model.cpu().to_torchscript(
+                method="trace", example_inputs=imgs
+            )
+            if os.path.isfile(cpu_model_file_path):
                 os.remove(cpu_model_file_path)
             torch.jit.save(cpu_scripted_model, cpu_model_file_path)
             print(f"torch script model saved: {cpu_model_file_path=}")
-            
-            
 
-        onnx_model_file_path:str = os.path.join( f"{cfg.paths.root_dir}","checkpoints","onnxs", f"{cfg.name}.onnx" )
+        onnx_model_file_path: str = os.path.join(
+            f"{cfg.paths.root_dir}", "checkpoints", "onnxs", f"{cfg.name}.onnx"
+        )
         print(onnx_model_file_path)
-        if os.path.isfile( onnx_model_file_path ):
+        if os.path.isfile(onnx_model_file_path):
             print("removing old onnx files!!")
             os.remove(model_file_path)
 
-        model.to_onnx(file_path=onnx_model_file_path,input_sample=imgs, export_params=True,verbose=True, dynamic_axes={'input': {0: 'batch'}},input_names=['input'],output_names=['output'])
+        model.to_onnx(
+            file_path=onnx_model_file_path,
+            input_sample=imgs,
+            export_params=True,
+            verbose=True,
+            dynamic_axes={"input": {0: "batch"}},
+            input_names=["input"],
+            output_names=["output"],
+        )
         print(f"onnx model saved: {onnx_model_file_path}")
 
     # Return Float for Hparams ::returning train_loss for optuna to compare 'test/acc_epoch','test/loss_epoch'
     # test_metrics =  [ { 'test/loss_epoch':?? , 'test/acc_epoch': ?? } ]
-    return test_metrics[0].get('test/loss_epoch')
+    return test_metrics[0].get("test/loss_epoch")
 
 
 if __name__ == "__main__":

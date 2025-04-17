@@ -1,0 +1,19 @@
+FROM python:3.12.7-slim-bookworm
+# FROM pytorch/torchserve:latest-cpu
+RUN apt update &&  apt install -y --no-install-recommends default-jre  
+
+COPY checkpoints/model_stores/sports/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+WORKDIR /mlops
+COPY checkpoints/model_stores/sports/* checkpoints/model_stores/sports/
+
+COPY src/backend/torchserve_app/* src/backend/torchserve_app/
+
+# onnx compatabile issues
+
+EXPOSE 8080
+EXPOSE 8081
+EXPOSE 8082
+
+CMD [ "torchserve","--start","--model-store", "checkpoints/model_stores/sports/","--ts-config", "checkpoints/model_stores/sports/config.properties","--enable-model-api","--disable-token-auth","--foreground"]
